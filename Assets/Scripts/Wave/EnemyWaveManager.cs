@@ -1,77 +1,122 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
-public class EnemyWaveManager : SingletonBehaviour<EnemyWaveManager>
+[Serializable]
+public class EnemyEntry
 {
-    [Header("Spawn Setup")]
-    [SerializeField] private Transform spawnCenter;
-    [SerializeField] private Transform target;
-    [SerializeField] private GameObject enemyPrefab;
-    [SerializeField] private int enemyCount = 5;
-    [SerializeField] private float spawnRadius = 5f;
+    public GameObject prefab;
+    public int count = 1;
+    public float spawnInterval = 0.2f;
+}
 
-    [Header("Wave Events")]
+[Serializable]
+public class Wave
+{
+    public string waveName;
+    public List<EnemyEntry> enemies = new List<EnemyEntry>();
+}
+
+public class EnemyWaveManager : MonoBehaviour
+{
+    public Transform spawnPoint;
+    public float spawnRadius = 3f;
+    public List<Wave> waves = new List<Wave>();
     public UnityEvent OnWaveCompleted;
+    public UnityEvent OnAllWavesCompleted;
 
-    private readonly List<EnemyController> aliveEnemies = new List<EnemyController>();
-
-    protected override void Awake()
-    {
-        MakeSingleton(false);
-    }
+    private int currentWaveIndex = -1;
+    private int aliveCount = 0;
+    private bool isWaveRunning;
+    private Coroutine spawnRoutine;
 
     private void Start()
     {
-        SpawnWave();
-    }
-
-    public void SpawnWave()
-    {
-        ClearList();
-
-        for (int i = 0; i < enemyCount; i++)
+        if (waves.Count > 0)
         {
-            float angle = Random.Range(-180f, 180f);
-            float rad = angle * Mathf.Deg2Rad;
-
-            Vector3 dir = new Vector3(Mathf.Sin(rad), 0, Mathf.Cos(rad));
-            Vector3 pos = spawnCenter.position + dir * Random.Range(spawnRadius * 0.5f, spawnRadius);
-            pos.y = 0;
-            GameObject enemyObj = Instantiate(enemyPrefab, pos, Quaternion.identity);
-            EnemyController enemy = enemyObj.GetComponent<EnemyController>();
-
-            if (enemy != null)
-            {
-                enemyObj.transform.LookAt(target);
-                SetEnemyTarget(enemy);
-                aliveEnemies.Add(enemy);
-            }
+            StartWave(0);
         }
     }
 
-    private void SetEnemyTarget(EnemyController enemy)
+    public void StartWave(int index)
     {
-        var field = typeof(EnemyController).GetField("target", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        if (field != null) field.SetValue(enemy, target);
-
-        enemy.GetComponent<HealthController>().OnDead += () => HandleEnemyDeath(enemy);
+        if (isWaveRunning) return;
+        if (index < 0 || index >= waves.Count) return;
+        currentWaveIndex = index;
+        spawnRoutine = StartCoroutine(SpawnWave(waves[index]));
     }
 
-    private void HandleEnemyDeath(EnemyController enemy)
+    public void StartNextWave()
     {
-        if (aliveEnemies.Contains(enemy))
+        int next = currentWaveIndex + 1;
+        if (next < waves.Count)
         {
-            aliveEnemies.Remove(enemy);
-            if (aliveEnemies.Count == 0)
-            {
-                OnWaveCompleted?.Invoke();
-            }
+            StartWave(next);
+        }
+        else
+        {
+            OnAllWavesCompleted?.Invoke();
         }
     }
 
-    private void ClearList()
+    private IEnumerator SpawnWave(Wave wave)
     {
-        aliveEnemies.Clear();
+        isWaveRunning = true;
+        aliveCount = 0;
+
+        foreach (var entry in wave.enemies)
+        {
+            for (int i = 0; i < entry.count; i++)
+            {
+                SpawnEnemy(entry.prefab);
+                yield return new WaitForSeconds(entry.spawnInterval);
+            }
+        }
+
+        while (aliveCount > 0)
+        {
+            yield return null;
+        }
+
+        isWaveRunning = false;
+        OnWaveCompleted?.Invoke();
+    }
+
+    private void SpawnEnemy(GameObject prefab)
+    {
+        if (prefab == null || spawnPoint == null) return;
+        Vector2 offset = UnityEngine.Random.insideUnitCircle.normalized * UnityEngine.Random.Range(0f, spawnRadius);
+        Vector3 spawnPos = spawnPoint.position + new Vector3(offset.x, 0, offset.y);
+        GameObject enemy = Instantiate(prefab, spawnPos, Quaternion.identity);
+
+        EnemyController controller = enemy.GetComponent<EnemyController>();
+        if (controller != null)
+        {
+            controller.SetTarget(spawnPoint);
+        }
+
+        IHealth health = enemy.GetComponent<IHealth>();
+        aliveCount++;
+        if (health != null)
+        {
+            Action handler = null;
+            handler = () =>
+            {
+                if (health != null) health.OnDead -= handler;
+                aliveCount = Mathf.Max(0, aliveCount - 1);
+            };
+            health.OnDead += handler;
+        }
+    }
+
+    private void OnDrawGizmos()
+    {
+        if (spawnPoint != null)
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireSphere(spawnPoint.position, spawnRadius);
+        }
     }
 }

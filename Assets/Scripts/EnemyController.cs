@@ -2,9 +2,6 @@
 using UnityEngine;
 using DG.Tweening;
 
-[RequireComponent(typeof(MovementController))]
-[RequireComponent(typeof(AttackController))]
-[RequireComponent(typeof(HealthController))]
 public class EnemyController : MonoBehaviour
 {
     [Header("Enemy Setup")]
@@ -57,30 +54,6 @@ public class EnemyController : MonoBehaviour
         ApplyMovementState(prevInRange);
     }
 
-    private void OnDisable()
-    {
-        UnsubscribeAll();
-    }
-
-    private void UnsubscribeAll()
-    {
-        if (healthInterface != null)
-        {
-            healthInterface.OnDead -= HandleDeath;
-            healthInterface.OnHealthChanged -= HandleHealthChanged;
-        }
-
-        if (attackInterface != null)
-        {
-            attackInterface.OnAttack -= HandleAttackStart;
-        }
-
-        if (attackController != null)
-        {
-            attackController.OnAttackEnd -= HandleAttackEnd;
-        }
-    }
-
     private void Update()
     {
         if (isDead) return;
@@ -101,6 +74,37 @@ public class EnemyController : MonoBehaviour
         }
 
         currentSpeed = movement?.AnimationSpeed ?? currentSpeed;
+    }
+
+    private void OnDisable()
+    {
+        UnsubscribeAll();
+    }
+
+    public void SetTarget(Transform t)
+    {
+        target = t;
+        movementInterface?.SetTarget(t);
+        attackController?.SetTarget(t);
+    }
+
+    private void UnsubscribeAll()
+    {
+        if (healthInterface != null)
+        {
+            healthInterface.OnDead -= HandleDeath;
+            healthInterface.OnHealthChanged -= HandleHealthChanged;
+        }
+
+        if (attackInterface != null)
+        {
+            attackInterface.OnAttack -= HandleAttackStart;
+        }
+
+        if (attackController != null)
+        {
+            attackController.OnAttackEnd -= HandleAttackEnd;
+        }
     }
 
     private void ApplyMovementState(bool inRange)

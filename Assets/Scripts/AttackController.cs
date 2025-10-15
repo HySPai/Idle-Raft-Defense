@@ -118,11 +118,6 @@ public class AttackController : MonoBehaviour, IAttackable
         if (dist <= attackRange + hitTolerance)
         {
             OnDealDamage?.Invoke(damage);
-            Debug.Log($"{gameObject.name} dealt {damage} damage to {target?.name}");
-        }
-        else
-        {
-            Debug.Log($"{gameObject.name} attack missed because target left range (dist {dist:F2} > range {attackRange:F2})");
         }
     }
 

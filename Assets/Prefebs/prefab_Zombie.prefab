@@ -65,6 +65,9 @@ PrefabInstance:
       addedObject: {fileID: 5457757274203753099}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 885937250ecfdcc45a12622f22d89036, type: 3}
       insertIndex: -1
+      addedObject: {fileID: 5728930874471451700}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 885937250ecfdcc45a12622f22d89036, type: 3}
+      insertIndex: -1
       addedObject: {fileID: 2048000595363729320}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 885937250ecfdcc45a12622f22d89036, type: 3}
       insertIndex: -1
@@ -72,9 +75,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 885937250ecfdcc45a12622f22d89036, type: 3}
       insertIndex: -1
       addedObject: {fileID: 8864552035573824283}
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 885937250ecfdcc45a12622f22d89036, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 5728930874471451700}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 885937250ecfdcc45a12622f22d89036, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2399565978361479322}
@@ -112,6 +112,24 @@ CapsuleCollider:
   m_Height: 1.8535414
   m_Direction: 1
   m_Center: {x: 0, y: 0.9094629, z: 0}
+--- !u!114 &5728930874471451700
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4996133691200120145}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e264e254e818e594fa479bc9490255c3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  target: {fileID: 0}
+  movement: {fileID: 2048000595363729320}
+  attackController: {fileID: 8620914383171654617}
+  health: {fileID: 8864552035573824283}
+  animationController: {fileID: 2399565978361479322}
+  isDead: 0
 --- !u!114 &2048000595363729320
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -159,24 +177,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxHealth: 100
   currentHealth: 0
---- !u!114 &5728930874471451700
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4996133691200120145}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e264e254e818e594fa479bc9490255c3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  target: {fileID: 0}
-  movement: {fileID: 2048000595363729320}
-  attackController: {fileID: 8620914383171654617}
-  health: {fileID: 8864552035573824283}
-  animationController: {fileID: 2399565978361479322}
-  isDead: 0
 --- !u!114 &2399565978361479322
 MonoBehaviour:
   m_ObjectHideFlags: 0
