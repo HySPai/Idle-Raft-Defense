@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
+using DG.Tweening;
 
 [RequireComponent(typeof(MovementController))]
 [RequireComponent(typeof(AttackController))]
@@ -8,94 +10,136 @@ public class EnemyController : MonoBehaviour
     [Header("Enemy Setup")]
     [SerializeField] private Transform target;
 
-    private IMovable movement;
-    private IAttackable attack;
-    private IHealth health;
+    [Header("Components (assign in Inspector)")]
+    [SerializeField] private MovementController movement;
+    [SerializeField] private AttackController attackController;
+    [SerializeField] private HealthController health;
+    [SerializeField] private AnimationController animationController;
+
+    private IMovable movementInterface;
+    private IAttackable attackInterface;
+    private IHealth healthInterface;
     private IAnimatable anim;
-    private AttackController attackController;
 
-    private Vector3 lastPosition;
     private float currentSpeed;
+    [SerializeField] private bool isDead;
 
-    private void Awake()
+    private bool prevInRange = false;
+
+    private void Start()
     {
-        movement = GetComponent<MovementController>();
-        attack = GetComponent<AttackController>();
-        attackController = attack as AttackController;
-        health = GetComponent<HealthController>();
-        anim = GetComponentInChildren<IAnimatable>() as IAnimatable;
+        movementInterface = movement as IMovable;
+        attackInterface = attackController as IAttackable;
+        healthInterface = health as IHealth;
+        anim = animationController as IAnimatable;
 
-        if (movement != null) movement.SetTarget(target);
-        if (attackController != null) attackController.SetTarget(target);
+        movementInterface.SetTarget(target);
+        attackController.SetTarget(target);
 
-        if (health != null)
+        if (healthInterface != null)
         {
-            health.OnDead += HandleDeath;
-            health.OnHealthChanged += HandleHealthChanged;
+            healthInterface.OnDead += HandleDeath;
+            healthInterface.OnHealthChanged += HandleHealthChanged;
         }
 
-        if (attack != null)
+        if (attackInterface != null)
         {
-            attack.OnAttack += HandleAttack;
+            attackInterface.OnAttack += HandleAttackStart;
         }
 
-        lastPosition = transform.position;
+        if (attackController != null)
+        {
+            attackController.OnAttackEnd += HandleAttackEnd;
+        }
+
+        currentSpeed = movement?.AnimationSpeed ?? 0f;
+        prevInRange = attackController != null && attackController.IsTargetInRangeCached;
+        ApplyMovementState(prevInRange);
+    }
+
+    private void OnDisable()
+    {
+        UnsubscribeAll();
+    }
+
+    private void UnsubscribeAll()
+    {
+        if (healthInterface != null)
+        {
+            healthInterface.OnDead -= HandleDeath;
+            healthInterface.OnHealthChanged -= HandleHealthChanged;
+        }
+
+        if (attackInterface != null)
+        {
+            attackInterface.OnAttack -= HandleAttackStart;
+        }
+
+        if (attackController != null)
+        {
+            attackController.OnAttackEnd -= HandleAttackEnd;
+        }
     }
 
     private void Update()
     {
-        if (target == null) return;
+        if (isDead) return;
 
-        bool inRange = attackController != null && attackController.IsTargetInRange();
+        movementInterface.MoveUpdate();
+
+        bool inRange = attackController != null && attackController.IsTargetInRangeCached;
+
+        if (inRange != prevInRange)
+        {
+            prevInRange = inRange;
+            ApplyMovementState(inRange);
+        }
 
         if (inRange)
         {
-            if (movement != null) movement.CanMove = false;
-            if (anim != null)
-            {
-                anim.PlayMove(false, 0f);
-                anim.PlayAttack();
-            }
-            if (attack != null) attack.TryAttack();
-            RotateTowardsTarget();
+            attackInterface?.TryAttack();
+        }
+
+        currentSpeed = movement?.AnimationSpeed ?? currentSpeed;
+    }
+
+    private void ApplyMovementState(bool inRange)
+    {
+        if (inRange)
+        {
+            movementInterface.CanMove = false;
+            anim?.PlayMove(false, 0f);
         }
         else
         {
-            if (movement != null)
-            {
-                movement.CanMove = true;
-                movement.MoveUpdate();
-            }
-
-            UpdateSpeed();
-            if (anim != null)
-            {
-                anim.StopAttack();
-                anim.PlayMove(true, currentSpeed);
-            }
+            movementInterface.CanMove = true;
+            anim?.PlayMove(true, currentSpeed);
         }
     }
 
-    private void UpdateSpeed()
+    private void HandleAttackStart()
     {
-        Vector3 delta = transform.position - lastPosition;
-        currentSpeed = delta.magnitude / Time.deltaTime;
-        lastPosition = transform.position;
+        if (isDead) return;
+        movementInterface.CanMove = false;
+        anim?.PlayAttack();
     }
 
-    private void RotateTowardsTarget()
+    private void HandleAttackEnd()
     {
-        if (target == null) return;
-        Vector3 dir = (target.position - transform.position);
-        dir.y = 0;
-        if (dir.sqrMagnitude < 0.001f) return;
-        Quaternion lookRot = Quaternion.LookRotation(dir.normalized);
-        transform.rotation = Quaternion.Slerp(transform.rotation, lookRot, Time.deltaTime * 5f);
-    }
-
-    private void HandleAttack()
-    {
-        if (anim != null) anim.PlayAttack();
+        if (isDead) return;
+        bool stillInRange = attackController != null && attackController.IsTargetInRangeCached;
+        if (stillInRange)
+        {
+            movementInterface.CanMove = false;
+            anim?.PlayMove(false, 0f);
+            attackInterface?.TryAttack();
+        }
+        else
+        {
+            movementInterface.CanMove = true;
+            anim?.StopAttack();
+            anim?.PlayMove(true, currentSpeed);
+        }
     }
 
     private void HandleHealthChanged(int cur, int max)
@@ -104,9 +148,23 @@ public class EnemyController : MonoBehaviour
 
     private void HandleDeath()
     {
-        if (anim != null) anim.PlayDie();
-        if (movement != null) movement.CanMove = false;
-        if (attack != null) attack.CanAttack = false;
-        Destroy(gameObject, 2f);
+        if (isDead) return;
+        isDead = true;
+        anim?.PlayDie();
+        movementInterface.CanMove = false;
+        if (attackInterface != null) attackInterface.CanAttack = false;
+        UnsubscribeAll();
+    }
+
+    public void OnDeathSink()
+    {
+        if (!isDead) return;
+
+        float sinkDistance = 2f;
+        float duration = 1.5f;
+
+        transform.DOMoveY(transform.position.y - sinkDistance, duration)
+            .SetEase(Ease.InQuad)
+            .OnComplete(() => Destroy(gameObject));
     }
 }

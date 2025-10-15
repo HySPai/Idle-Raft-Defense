@@ -6,14 +6,15 @@ public class HealthController : MonoBehaviour, IHealth
     [Header("Health Settings")]
     [SerializeField] private int maxHealth = 100;
 
-    private int currentHealth;
+    [SerializeField] private int currentHealth;
+
     public int CurrentHealth => currentHealth;
     public int MaxHealth => maxHealth;
 
     public event Action OnDead;
     public event Action<int, int> OnHealthChanged;
 
-    private void Awake()
+    private void Start()
     {
         currentHealth = maxHealth;
     }
